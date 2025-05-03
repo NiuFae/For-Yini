@@ -44,16 +44,16 @@ let showRestartTip = false;
 let winStage = 0;
 
 let bgmStarted = false;
-
 function startBGM() {
     if (!bgmStarted && bgm) {
         bgm.play();
         bgmStarted = true;
     }
 }
-
 canvas.addEventListener('click', startBGM);
 canvas.addEventListener('touchend', startBGM);
+document.body.addEventListener('click', startBGM);
+document.body.addEventListener('touchend', startBGM);
 
 // 获取活动区间内的随机横坐标
 function getRandomPreviewX() {
