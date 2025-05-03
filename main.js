@@ -43,6 +43,11 @@ let showRestartTip = false;
 // 0=未胜利，1=合成第七张后等待点击，2=美好特效阶段，3=祝福语和礼花阶段，4=重开提示
 let winStage = 0;
 
+let stageLock = false;
+function unlockStage() {
+    stageLock = false;
+}
+
 let bgmStarted = false;
 function startBGM() {
     if (!bgmStarted && bgm) {
@@ -449,7 +454,13 @@ canvas.addEventListener('mousemove', e => {
 });
 
 // 鼠标点击控制掉落位置或阶段切换
-canvas.addEventListener('click', e => {
+canvas.addEventListener('click', function(e) {
+    e.preventDefault && e.preventDefault();
+    e.stopPropagation && e.stopPropagation();
+    if (stageLock) return;
+    stageLock = true;
+    setTimeout(unlockStage, 300);
+
     if (win && winStage === 1) {
         winStage = 2;
         beautifulParticles = [];
@@ -460,7 +471,6 @@ canvas.addEventListener('click', e => {
         return;
     }
     if (win && winStage === 3 && !showRestartTip) {
-        // 第三次点击，显示“点击屏幕重新开始”
         clearInterval(colorInterval);
         messageDiv.textContent = '点击屏幕重新开始';
         messageDiv.style.color = '#e06666';
@@ -468,7 +478,6 @@ canvas.addEventListener('click', e => {
         return;
     }
     if (win && winStage === 3 && showRestartTip) {
-        // 第四次点击，才真正重开
         winStage = 4;
         restartGame();
         return;
@@ -479,7 +488,7 @@ canvas.addEventListener('click', e => {
         previewType = Math.floor(Math.random() * 2);
         previewX = getRandomPreviewX();
     }
-});
+}, { passive: false });
 
 // 移动端适配
 canvas.addEventListener('touchmove', e => {
@@ -490,7 +499,13 @@ canvas.addEventListener('touchmove', e => {
     }
 });
 
-canvas.addEventListener('touchend', e => {
+canvas.addEventListener('touchend', function(e) {
+    e.preventDefault && e.preventDefault();
+    e.stopPropagation && e.stopPropagation();
+    if (stageLock) return;
+    stageLock = true;
+    setTimeout(unlockStage, 300);
+
     if (win && winStage === 1) {
         winStage = 2;
         beautifulParticles = [];
@@ -518,7 +533,7 @@ canvas.addEventListener('touchend', e => {
         previewType = Math.floor(Math.random() * 2);
         previewX = getRandomPreviewX();
     }
-});
+}, { passive: false });
 
 function restartGame() {
     fruits = [];
