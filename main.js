@@ -31,6 +31,7 @@ let gameOver = false;
 let win = false;
 let colorInterval = null;
 let confettiList = [];
+let beautifulParticles = [];
 let restartReady = false;
 
 // 预览水果
@@ -39,9 +40,8 @@ let previewX = getRandomPreviewX();
 let showRestartTip = false;
 
 // 阶段控制
-let winStage = 0; // 0=未胜利，1=美好特效阶段，2=祝福语和礼花阶段，3=重开提示
-let beautifulThings = [];
-let beautifulInterval = null;
+// 0=未胜利，1=合成第七张后等待点击，2=美好特效阶段，3=祝福语和礼花阶段，4=重开提示
+let winStage = 0;
 
 // 获取活动区间内的随机横坐标
 function getRandomPreviewX() {
@@ -96,78 +96,6 @@ function drawHeart(x, y, size, color = 'red') {
     ctx.restore();
 }
 
-function drawStar(cx, cy, spikes, outerRadius, innerRadius, color, alpha = 1) {
-    let rot = Math.PI / 2 * 3;
-    let x = cx;
-    let y = cy;
-    let step = Math.PI / spikes;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - outerRadius);
-    for (let i = 0; i < spikes; i++) {
-        x = cx + Math.cos(rot) * outerRadius;
-        y = cy + Math.sin(rot) * outerRadius;
-        ctx.lineTo(x, y);
-        rot += step;
-
-        x = cx + Math.cos(rot) * innerRadius;
-        y = cy + Math.sin(rot) * innerRadius;
-        ctx.lineTo(x, y);
-        rot += step;
-    }
-    ctx.lineTo(cx, cy - outerRadius);
-    ctx.closePath();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.restore();
-}
-
-function drawMoon(x, y, r, color, alpha = 1) {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0.5 * Math.PI, 1.5 * Math.PI, false);
-    ctx.arc(x + r / 2, y, r, 1.5 * Math.PI, 0.5 * Math.PI, true);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.restore();
-}
-
-function drawFlower(x, y, size, color, alpha = 1) {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
-    for (let i = 0; i < 6; i++) {
-        ctx.rotate(Math.PI / 3);
-        ctx.beginPath();
-        ctx.arc(0, size / 2, size / 3, 0, 2 * Math.PI);
-        ctx.fillStyle = color;
-        ctx.fill();
-    }
-    ctx.beginPath();
-    ctx.arc(0, 0, size / 3, 0, 2 * Math.PI);
-    ctx.fillStyle = '#FFD700';
-    ctx.fill();
-    ctx.restore();
-}
-
-function drawBeautifulThings() {
-    for (let b of beautifulThings) {
-        if (b.type === 'star') {
-            drawStar(b.x, b.y, 5, b.size, b.size / 2, b.color, b.alpha);
-        } else if (b.type === 'moon') {
-            drawMoon(b.x, b.y, b.size, b.color, b.alpha);
-        } else if (b.type === 'flower') {
-            drawFlower(b.x, b.y, b.size, b.color, b.alpha);
-        } else if (b.type === 'heart') {
-            drawHeart(b.x, b.y, b.size, b.color);
-        }
-    }
-}
-
 function drawECGLine() {
     // 心电图参数
     const width = ACTIVE_RIGHT - ACTIVE_LEFT;
@@ -219,14 +147,60 @@ function drawConfetti() {
     confettiList = confettiList.filter(c => c.alpha > 0);
 }
 
-function launchConfetti() {
-    for (let i = 0; i < 60; i++) {
-        confettiList.push({
+// 美好特效阶段的粒子动画（和礼花类似，五彩泡泡+星星）
+function drawBeautifulParticles() {
+    for (let p of beautifulParticles) {
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        if (p.shape === 'circle') {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
+            ctx.fillStyle = p.color;
+            ctx.fill();
+        } else if (p.shape === 'star') {
+            drawStarSimple(p.x, p.y, p.size, p.color);
+        }
+        ctx.restore();
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.004;
+    }
+    beautifulParticles = beautifulParticles.filter(p => p.alpha > 0);
+}
+
+function drawStarSimple(cx, cy, r, color) {
+    ctx.save();
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+        ctx.lineTo(
+            cx + r * Math.cos((18 + i * 72) * Math.PI / 180),
+            cy - r * Math.sin((18 + i * 72) * Math.PI / 180)
+        );
+        ctx.lineTo(
+            cx + r / 2 * Math.cos((54 + i * 72) * Math.PI / 180),
+            cy - r / 2 * Math.sin((54 + i * 72) * Math.PI / 180)
+        );
+    }
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+}
+
+function launchBeautifulParticles() {
+    for (let i = 0; i < 18; i++) {
+        let shape = Math.random() > 0.5 ? 'circle' : 'star';
+        let color = shape === 'circle'
+            ? `hsl(${Math.random() * 360},90%,70%)`
+            : `hsl(${Math.random() * 360},90%,85%)`;
+        beautifulParticles.push({
             x: canvas.width / 2 + (Math.random() - 0.5) * 180,
             y: DEAD_LINE + 40 + Math.random() * 100,
-            size: 6 + Math.random() * 8,
-            color: `hsl(${Math.random() * 360},90%,60%)`,
-            speed: 1 + Math.random() * 2,
+            size: shape === 'circle' ? 8 + Math.random() * 10 : 10 + Math.random() * 8,
+            color: color,
+            shape: shape,
+            vx: (Math.random() - 0.5) * 2,
+            vy: -1.5 - Math.random() * 1.5,
             alpha: 1
         });
     }
@@ -244,13 +218,13 @@ function draw() {
     // 画心电图死亡线
     drawECGLine();
 
-    // 阶段1：美好特效阶段
-    if (win && winStage === 1) {
-        drawBeautifulThings();
+    // 美好特效阶段
+    if (win && winStage === 2) {
+        drawBeautifulParticles();
     }
 
-    // 阶段2：祝福语和礼花
-    if (win && winStage === 2) {
+    // 祝福语和礼花阶段
+    if (win && winStage === 3) {
         drawConfetti();
     }
 
@@ -258,7 +232,7 @@ function draw() {
     drawPreviewFruit();
 
     // 游戏中或美好特效阶段才画水果
-    if (!win || winStage === 1) {
+    if (!win || winStage === 1 || winStage === 2) {
         for (let fruit of fruits) {
             drawFruit(fruit, 1);
         }
@@ -269,10 +243,10 @@ function draw() {
 }
 
 function update() {
-    if (gameOver || (win && winStage > 2)) return;
+    if (gameOver || (win && winStage > 3)) return;
 
-    // 阶段1：美好特效阶段
-    if (win && winStage === 1) {
+    // 美好特效阶段
+    if (win && winStage === 2) {
         // 水果和碰撞依然正常
         for (let fruit of fruits) {
             fruit.y += fruit.vy;
@@ -305,18 +279,14 @@ function update() {
                 }
             }
         }
-        // 美好事物动画
-        for (let b of beautifulThings) {
-            b.alpha += b.deltaAlpha;
-            if (b.alpha > 1) {
-                b.alpha = 1;
-                b.deltaAlpha *= -1;
-            }
-            if (b.alpha < 0.2) {
-                b.alpha = 0.2;
-                b.deltaAlpha *= -1;
-            }
+        // 粒子动画
+        if (Math.random() < 0.18) launchBeautifulParticles();
+        for (let p of beautifulParticles) {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.alpha -= 0.008;
         }
+        beautifulParticles = beautifulParticles.filter(p => p.alpha > 0);
         return;
     }
 
@@ -353,7 +323,7 @@ function update() {
                     let nx = (a.x + b.x) / 2;
                     let ny = (a.y + b.y) / 2;
                     if (a.type + 1 === FRUIT_COUNT - 1) {
-                        // 合成到第七张，触发美好特效阶段
+                        // 合成到第七张，进入winStage=1
                         showWin();
                         a.merged = b.merged = true;
                         if (mergeSound) {
@@ -404,59 +374,19 @@ function showMessage(type) {
 
 function showWin() {
     win = true;
-    winStage = 1;
-    beautifulThings = [];
-    // 随机生成美好事物
-    for (let i = 0; i < 8; i++) {
-        beautifulThings.push({
-            type: 'star',
-            x: Math.random() * (canvas.width - 40) + 20,
-            y: Math.random() * (canvas.height - 200) + 60,
-            size: 16 + Math.random() * 16,
-            color: `hsl(${Math.random() * 360},90%,80%)`,
-            alpha: Math.random() * 0.8 + 0.2,
-            deltaAlpha: (Math.random() > 0.5 ? 1 : -1) * 0.01
-        });
-    }
-    for (let i = 0; i < 3; i++) {
-        beautifulThings.push({
-            type: 'moon',
-            x: Math.random() * (canvas.width - 80) + 40,
-            y: Math.random() * (canvas.height / 2 - 40) + 40,
-            size: 18 + Math.random() * 10,
-            color: '#ffe066',
-            alpha: Math.random() * 0.8 + 0.2,
-            deltaAlpha: (Math.random() > 0.5 ? 1 : -1) * 0.008
-        });
-    }
-    for (let i = 0; i < 5; i++) {
-        beautifulThings.push({
-            type: 'flower',
-            x: Math.random() * (canvas.width - 60) + 30,
-            y: Math.random() * (canvas.height - 200) + 100,
-            size: 18 + Math.random() * 10,
-            color: `hsl(${Math.random() * 360},80%,70%)`,
-            alpha: Math.random() * 0.8 + 0.2,
-            deltaAlpha: (Math.random() > 0.5 ? 1 : -1) * 0.012
-        });
-    }
-    for (let i = 0; i < 3; i++) {
-        beautifulThings.push({
-            type: 'heart',
-            x: Math.random() * (canvas.width - 60) + 30,
-            y: Math.random() * (canvas.height - 200) + 120,
-            size: 18 + Math.random() * 10,
-            color: '#ff4081',
-            alpha: Math.random() * 0.8 + 0.2,
-            deltaAlpha: (Math.random() > 0.5 ? 1 : -1) * 0.015
-        });
-    }
+    winStage = 1; // 等待第一次点击
     dropFruit = null;
     restartReady = false;
     showRestartTip = false;
 }
 
+function showWinBeautiful() {
+    winStage = 2; // 美好特效阶段
+    beautifulParticles = [];
+}
+
 function showWinBlessing() {
+    winStage = 3; // 祝福语和礼花阶段
     messageDiv.textContent = '祝洪漪妮、曾础铭新婚快乐，永远幸福！';
     messageDiv.style.opacity = 1;
     messageDiv.style.fontSize = '2em';
@@ -492,21 +422,24 @@ canvas.addEventListener('mousemove', e => {
 // 鼠标点击控制掉落位置或阶段切换
 canvas.addEventListener('click', e => {
     if (win && winStage === 1) {
-        // 阶段1->2：显示祝福语和礼花
-        winStage = 2;
-        beautifulThings = [];
+        // 第一次点击，进入美好特效阶段
+        showWinBeautiful();
+        return;
+    }
+    if (win && winStage === 2) {
+        // 第二次点击，进入祝福语和礼花阶段
         showWinBlessing();
         return;
     }
-    if (win && winStage === 2 && restartReady && !showRestartTip) {
-        // 阶段2->3：显示“点击屏幕重新开始”
+    if (win && winStage === 3 && restartReady && !showRestartTip) {
+        // 第三次点击，显示“点击屏幕重新开始”
         clearInterval(colorInterval);
         messageDiv.textContent = '点击屏幕重新开始';
         messageDiv.style.color = '#e06666';
         showRestartTip = true;
         return;
     }
-    if (win && winStage === 2 && restartReady && showRestartTip) {
+    if (win && winStage === 3 && restartReady && showRestartTip) {
         restartGame();
         return;
     }
@@ -530,19 +463,21 @@ canvas.addEventListener('touchmove', e => {
 });
 canvas.addEventListener('touchend', e => {
     if (win && winStage === 1) {
-        winStage = 2;
-        beautifulThings = [];
+        showWinBeautiful();
+        return;
+    }
+    if (win && winStage === 2) {
         showWinBlessing();
         return;
     }
-    if (win && winStage === 2 && restartReady && !showRestartTip) {
+    if (win && winStage === 3 && restartReady && !showRestartTip) {
         clearInterval(colorInterval);
         messageDiv.textContent = '点击屏幕重新开始';
         messageDiv.style.color = '#e06666';
         showRestartTip = true;
         return;
     }
-    if (win && winStage === 2 && restartReady && showRestartTip) {
+    if (win && winStage === 3 && restartReady && showRestartTip) {
         restartGame();
         return;
     }
@@ -565,6 +500,7 @@ function restartGame() {
     win = false;
     winStage = 0;
     confettiList = [];
+    beautifulParticles = [];
     messageDiv.textContent = '';
     messageDiv.style.opacity = 0;
     messageDiv.style.fontSize = '';
@@ -582,7 +518,7 @@ function restartGame() {
 }
 
 function gameLoop() {
-    if (!gameOver && (!win || winStage < 3)) {
+    if (!gameOver && (!win || winStage < 4)) {
         if (isDropping && dropFruit) {
             dropFruit.y += dropFruit.vy;
             dropFruit.vy += 0.3;
@@ -610,7 +546,7 @@ function gameLoop() {
         update();
         draw();
         requestAnimationFrame(gameLoop);
-    } else if (win && winStage < 3) {
+    } else if (win && winStage < 4) {
         update();
         draw();
         requestAnimationFrame(gameLoop);
