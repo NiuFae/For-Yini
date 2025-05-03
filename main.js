@@ -224,7 +224,7 @@ function draw() {
     }
 
     // 祝福语和礼花阶段
-    if if (win && (winStage === 3 || winStage === 4)) {
+    if (win && (winStage === 3 || winStage === 4)) {
     drawConfetti();
     }
 
@@ -440,8 +440,8 @@ canvas.addEventListener('click', e => {
         messageDiv.textContent = '点击屏幕重新开始';
         messageDiv.style.color = '#e06666';
         showRestartTip = true;
-        restartReady = true; // 现在才允许重开
-        winStage = 4; // 进入重开提示阶段
+        restartReady = true;
+        winStage = 4;
         return;
     }
     if (win && winStage === 4 && restartReady && showRestartTip) {
