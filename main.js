@@ -228,10 +228,7 @@ function draw() {
         drawConfetti();
     }
 
-    // 画预览水果
-    drawPreviewFruit();
-
-    // 游戏中或美好特效阶段才画水果
+    // 游戏中或美好特效阶段都要画水果
     if (!win || winStage === 1 || winStage === 2) {
         for (let fruit of fruits) {
             drawFruit(fruit, 1);
