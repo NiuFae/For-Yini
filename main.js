@@ -224,8 +224,8 @@ function draw() {
     }
 
     // 祝福语和礼花阶段
-    if (win && winStage === 3) {
-        drawConfetti();
+    if if (win && (winStage === 3 || winStage === 4)) {
+    drawConfetti();
     }
 
     // 画预览水果
@@ -408,7 +408,7 @@ function showWinBlessing() {
     }, 200);
     // 礼花
     launchConfetti();
-    restartReady = true;
+    restartReady = false; // 这里要设为 false，等下点击才设为 true
     showRestartTip = false;
 }
 
@@ -434,15 +434,17 @@ canvas.addEventListener('click', e => {
         showWinBlessing();
         return;
     }
-    if (win && winStage === 3 && restartReady && !showRestartTip) {
+    if (win && winStage === 3 && !restartReady) {
         // 第三次点击，显示“点击屏幕重新开始”
         clearInterval(colorInterval);
         messageDiv.textContent = '点击屏幕重新开始';
         messageDiv.style.color = '#e06666';
         showRestartTip = true;
+        restartReady = true; // 现在才允许重开
+        winStage = 4; // 进入重开提示阶段
         return;
     }
-    if (win && winStage === 3 && restartReady && showRestartTip) {
+    if (win && winStage === 4 && restartReady && showRestartTip) {
         restartGame();
         return;
     }
@@ -473,14 +475,16 @@ canvas.addEventListener('touchend', e => {
         showWinBlessing();
         return;
     }
-    if (win && winStage === 3 && restartReady && !showRestartTip) {
+    if (win && winStage === 3 && !restartReady) {
         clearInterval(colorInterval);
         messageDiv.textContent = '点击屏幕重新开始';
         messageDiv.style.color = '#e06666';
         showRestartTip = true;
+        restartReady = true;
+        winStage = 4;
         return;
     }
-    if (win && winStage === 3 && restartReady && showRestartTip) {
+    if (win && winStage === 4 && restartReady && showRestartTip) {
         restartGame();
         return;
     }
