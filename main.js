@@ -33,10 +33,15 @@ let colorInterval = null;
 let confettiList = [];
 let restartReady = false;
 
-// 新增：预览水果
+// 预览水果
 let previewType = Math.floor(Math.random() * 2);
-let previewX = (ACTIVE_LEFT + ACTIVE_RIGHT) / 2;
-let isDragging = false;
+let previewX = getRandomPreviewX();
+let showRestartTip = false;
+
+// 获取活动区间内的随机横坐标
+function getRandomPreviewX() {
+    return Math.random() * (ACTIVE_RIGHT - ACTIVE_LEFT - 2 * FRUIT_RADIUS[previewType]) + ACTIVE_LEFT + FRUIT_RADIUS[previewType];
+}
 
 // 加载图片
 function loadImages(callback) {
@@ -150,27 +155,6 @@ function launchConfetti() {
     }
 }
 
-function drawArrows() {
-    // 左箭头
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = '#e06666';
-    ctx.beginPath();
-    ctx.moveTo(ACTIVE_LEFT - 30, DEAD_LINE + 30);
-    ctx.lineTo(ACTIVE_LEFT - 10, DEAD_LINE + 20);
-    ctx.lineTo(ACTIVE_LEFT - 10, DEAD_LINE + 40);
-    ctx.closePath();
-    ctx.fill();
-    // 右箭头
-    ctx.beginPath();
-    ctx.moveTo(ACTIVE_RIGHT + 30, DEAD_LINE + 30);
-    ctx.lineTo(ACTIVE_RIGHT + 10, DEAD_LINE + 20);
-    ctx.lineTo(ACTIVE_RIGHT + 10, DEAD_LINE + 40);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-}
-
 function drawPreviewFruit() {
     if (!isDropping && !gameOver && !win) {
         drawFruit({x: previewX, y: DEAD_LINE - FRUIT_RADIUS[previewType] - 10, type: previewType, radius: FRUIT_RADIUS[previewType]}, 0.5);
@@ -188,9 +172,6 @@ function draw() {
 
     // 画预览水果
     drawPreviewFruit();
-
-    // 画左右箭头
-    drawArrows();
 
     // 游戏中才画水果
     if (!win) {
@@ -311,17 +292,32 @@ function showWin() {
     }, 200);
     // 礼花
     launchConfetti();
-    // 只在玩家点击后才显示重新开始
-    restartReady = false;
-    setTimeout(() => {
-        restartReady = true;
-    }, 1000); // 1秒后允许点击重开
+    // 祝福语一直持续，直到玩家点击
+    showRestartTip = false;
+    restartReady = true;
 }
+
+// 鼠标移动时，预览水果跟随鼠标横坐标
+canvas.addEventListener('mousemove', e => {
+    if (!isDropping && !gameOver && !win) {
+        const rect = canvas.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        previewX = Math.max(ACTIVE_LEFT + FRUIT_RADIUS[previewType], Math.min(ACTIVE_RIGHT - FRUIT_RADIUS[previewType], x));
+    }
+});
 
 // 鼠标点击控制掉落位置或重开
 canvas.addEventListener('click', e => {
-    if (win && restartReady) {
+    if (win && restartReady && !showRestartTip) {
+        // 第一次点击，显示“点击屏幕重新开始”
         clearInterval(colorInterval);
+        messageDiv.textContent = '点击屏幕重新开始';
+        messageDiv.style.color = '#e06666';
+        showRestartTip = true;
+        return;
+    }
+    if (win && restartReady && showRestartTip) {
+        // 第二次点击，重开
         restartGame();
         return;
     }
@@ -331,78 +327,37 @@ canvas.addEventListener('click', e => {
         isDropping = true;
         // 生成下一个预览水果
         previewType = Math.floor(Math.random() * 2);
-        previewX = (ACTIVE_LEFT + ACTIVE_RIGHT) / 2;
-    }
-});
-
-// 拖动预览水果
-canvas.addEventListener('mousedown', e => {
-    if (!isDropping && !gameOver && !win) {
-        const rect = canvas.getBoundingClientRect();
-        let x = e.clientX - rect.left;
-        if (Math.abs(x - previewX) < FRUIT_RADIUS[previewType] * 1.2) {
-            isDragging = true;
-        }
-    }
-});
-canvas.addEventListener('mousemove', e => {
-    if (isDragging && !isDropping && !gameOver && !win) {
-        const rect = canvas.getBoundingClientRect();
-        let x = e.clientX - rect.left;
-        previewX = Math.max(ACTIVE_LEFT + FRUIT_RADIUS[previewType], Math.min(ACTIVE_RIGHT - FRUIT_RADIUS[previewType], x));
-    }
-});
-canvas.addEventListener('mouseup', e => {
-    isDragging = false;
-});
-
-// 支持点击左右箭头移动
-canvas.addEventListener('click', e => {
-    if (!isDropping && !gameOver && !win) {
-        const rect = canvas.getBoundingClientRect();
-        let x = e.clientX - rect.left;
-        // 左箭头
-        if (x < ACTIVE_LEFT - 10 && x > ACTIVE_LEFT - 40) {
-            previewX = Math.max(ACTIVE_LEFT + FRUIT_RADIUS[previewType], previewX - 30);
-        }
-        // 右箭头
-        if (x > ACTIVE_RIGHT + 10 && x < ACTIVE_RIGHT + 40) {
-            previewX = Math.min(ACTIVE_RIGHT - FRUIT_RADIUS[previewType], previewX + 30);
-        }
+        previewX = getRandomPreviewX();
     }
 });
 
 // 移动端适配
-canvas.addEventListener('touchstart', e => {
-    if (!isDropping && !gameOver && !win) {
-        const rect = canvas.getBoundingClientRect();
-        let x = e.touches[0].clientX - rect.left;
-        if (Math.abs(x - previewX) < FRUIT_RADIUS[previewType] * 1.2) {
-            isDragging = true;
-        }
-    }
-});
 canvas.addEventListener('touchmove', e => {
-    if (isDragging && !isDropping && !gameOver && !win) {
+    if (!isDropping && !gameOver && !win) {
         const rect = canvas.getBoundingClientRect();
         let x = e.touches[0].clientX - rect.left;
         previewX = Math.max(ACTIVE_LEFT + FRUIT_RADIUS[previewType], Math.min(ACTIVE_RIGHT - FRUIT_RADIUS[previewType], x));
     }
 });
 canvas.addEventListener('touchend', e => {
-    if (win && restartReady) {
+    if (win && restartReady && !showRestartTip) {
         clearInterval(colorInterval);
+        messageDiv.textContent = '点击屏幕重新开始';
+        messageDiv.style.color = '#e06666';
+        showRestartTip = true;
+        return;
+    }
+    if (win && restartReady && showRestartTip) {
         restartGame();
         return;
     }
-    isDragging = false;
     if (!isDropping && !gameOver && !win) {
         // 掉落水果
         dropFruit = new Fruit(previewX, FRUIT_RADIUS[previewType], previewType, 0);
         isDropping = true;
         // 生成下一个预览水果
         previewType = Math.floor(Math.random() * 2);
-        previewX = (ACTIVE_LEFT + ACTIVE_RIGHT) / 2;
+        previewX = getRandomPreviewX();
     }
 });
 
@@ -426,7 +381,8 @@ function restartGame() {
     messageDiv.style.width = '';
     messageDiv.style.padding = '';
     previewType = Math.floor(Math.random() * 2);
-    previewX = (ACTIVE_LEFT + ACTIVE_RIGHT) / 2;
+    previewX = getRandomPreviewX();
+    showRestartTip = false;
     gameLoop();
 }
 
