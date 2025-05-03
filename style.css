@@ -66,14 +66,27 @@ body::before {
     position: fixed;
     left: 0; top: 0; right: 0; bottom: 0;
     z-index: -1;
-    background: linear-gradient(120deg, #ffe4ec, #fffbe7, #e0f7fa, #e6ffe6, #ffe5b4, #f3e6ff, #ffe4ec);
-    background-size: 800% 800%;
-    animation: gradientMove 20s linear infinite;
+    background: linear-gradient(120deg, #ffe4ec, #fffbe7, #ffe5b4, #f3e6ff, #ffe4ec);
+    background-size: 400% 400%;
+    animation: gradientMove 30s ease-in-out infinite;
     opacity: 1;
     pointer-events: none;
 }
+
 @keyframes gradientMove {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0% {
+        background: linear-gradient(120deg, #ffe4ec, #fffbe7, #ffe5b4, #f3e6ff, #ffe4ec); /* 暖色 */
+        background-size: 400% 400%;
+        background-position: 0% 50%;
+    }
+    50% {
+        background: linear-gradient(120deg, #e0f7fa, #e6ffe6, #b3e5fc, #f3e6ff, #e0f7fa); /* 冷色 */
+        background-size: 400% 400%;
+        background-position: 100% 50%;
+    }
+    100% {
+        background: linear-gradient(120deg, #ffe4ec, #fffbe7, #ffe5b4, #f3e6ff, #ffe4ec); /* 回到暖色 */
+        background-size: 400% 400%;
+        background-position: 0% 50%;
+    }
 }
