@@ -212,6 +212,8 @@ function drawPreviewFruit() {
     }
 }
 
+// ...前面代码保持不变...
+
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
