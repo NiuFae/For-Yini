@@ -424,20 +424,22 @@ canvas.addEventListener('mousemove', e => {
 // 鼠标点击控制掉落位置或阶段切换
 canvas.addEventListener('click', e => {
     if (win && winStage === 1) {
-        showWinBeautiful();
+        // 第一次点击，进入美好特效阶段
+        winStage = 2;
+        beautifulParticles = [];
         return;
     }
     if (win && winStage === 2) {
+        // 第二次点击，进入祝福语和礼花阶段
         showWinBlessing();
         return;
     }
     if (win && winStage === 3 && restartReady && !showRestartTip) {
-        // 第一次点击祝福语，显示“点击屏幕重新开始”
+        // 第三次点击，显示“点击屏幕重新开始”
         clearInterval(colorInterval);
         messageDiv.textContent = '点击屏幕重新开始';
         messageDiv.style.color = '#e06666';
         showRestartTip = true;
-        // 礼花依然持续
         return;
     }
     if (win && winStage === 3 && restartReady && showRestartTip) {
@@ -451,6 +453,7 @@ canvas.addEventListener('click', e => {
         previewX = getRandomPreviewX();
     }
 });
+
 // 移动端适配
 canvas.addEventListener('touchmove', e => {
     if (!isDropping && !gameOver && !win && winStage === 0) {
@@ -459,9 +462,11 @@ canvas.addEventListener('touchmove', e => {
         previewX = Math.max(ACTIVE_LEFT + FRUIT_RADIUS[previewType], Math.min(ACTIVE_RIGHT - FRUIT_RADIUS[previewType], x));
     }
 });
+
 canvas.addEventListener('touchend', e => {
     if (win && winStage === 1) {
-        showWinBeautiful();
+        winStage = 2;
+        beautifulParticles = [];
         return;
     }
     if (win && winStage === 2) {
