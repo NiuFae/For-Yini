@@ -8,6 +8,13 @@ const FRUIT_COUNT = 7;
 const FRUIT_IMAGES = Array.from({length: FRUIT_COUNT}, (_, i) => `${i+1}.jpg`);
 const FRUIT_RADIUS = [36, 44, 54, 66, 80, 96, 120]; // 每级水果大小
 
+// 游戏活动区间（canvas宽度的中间80%）
+const ACTIVE_LEFT = canvas.width * 0.1;
+const ACTIVE_RIGHT = canvas.width * 0.9;
+
+// 死亡线位置（canvas高度的1/7处）
+const DEAD_LINE = canvas.height / 7;
+
 const MESSAGES = {
     2: '宜言饮酒',
     3: '与子偕老',
@@ -58,6 +65,17 @@ function drawFruit(fruit) {
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 画死亡线
+    ctx.save();
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(ACTIVE_LEFT, DEAD_LINE);
+    ctx.lineTo(ACTIVE_RIGHT, DEAD_LINE);
+    ctx.stroke();
+    ctx.restore();
+
     for (let fruit of fruits) {
         drawFruit(fruit);
     }
@@ -74,6 +92,19 @@ function update() {
         if (fruit.y + fruit.radius > canvas.height) {
             fruit.y = canvas.height - fruit.radius;
             fruit.vy = 0;
+        }
+        // 限制在活动区间
+        if (fruit.x - fruit.radius < ACTIVE_LEFT) {
+            fruit.x = ACTIVE_LEFT + fruit.radius;
+        }
+        if (fruit.x + fruit.radius > ACTIVE_RIGHT) {
+            fruit.x = ACTIVE_RIGHT - fruit.radius;
+        }
+        // 检查是否碰到死亡线
+        if (fruit.y - fruit.radius <= DEAD_LINE) {
+            gameOver = true;
+            messageDiv.textContent = '游戏失败！请刷新页面重新开始';
+            messageDiv.style.opacity = 1;
         }
     }
     // 碰撞检测与合成
@@ -133,16 +164,14 @@ function showMessage(type) {
     }
 }
 
-canvas.addEventListener('mousemove', e => {
+// 鼠标点击控制掉落位置
+canvas.addEventListener('click', e => {
     if (!isDropping && !gameOver) {
         const rect = canvas.getBoundingClientRect();
-        dropX = e.clientX - rect.left;
-    }
-});
-
-canvas.addEventListener('click', () => {
-    if (!isDropping && !gameOver) {
-        dropFruit = new Fruit(dropX, FRUIT_RADIUS[0], 0, 0);
+        let x = e.clientX - rect.left;
+        // 限制在活动区间
+        x = Math.max(ACTIVE_LEFT + FRUIT_RADIUS[0], Math.min(ACTIVE_RIGHT - FRUIT_RADIUS[0], x));
+        dropFruit = new Fruit(x, FRUIT_RADIUS[0], 0, 0);
         isDropping = true;
     }
 });
@@ -185,15 +214,12 @@ loadImages(() => {
 });
 
 // 适配移动端
-canvas.addEventListener('touchmove', e => {
+canvas.addEventListener('touchend', e => {
     if (!isDropping && !gameOver) {
         const rect = canvas.getBoundingClientRect();
-        dropX = e.touches[0].clientX - rect.left;
-    }
-});
-canvas.addEventListener('touchend', () => {
-    if (!isDropping && !gameOver) {
-        dropFruit = new Fruit(dropX, FRUIT_RADIUS[0], 0, 0);
+        let x = e.changedTouches[0].clientX - rect.left;
+        x = Math.max(ACTIVE_LEFT + FRUIT_RADIUS[0], Math.min(ACTIVE_RIGHT - FRUIT_RADIUS[0], x));
+        dropFruit = new Fruit(x, FRUIT_RADIUS[0], 0, 0);
         isDropping = true;
     }
 });
