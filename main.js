@@ -43,6 +43,18 @@ let showRestartTip = false;
 // 0=未胜利，1=合成第七张后等待点击，2=美好特效阶段，3=祝福语和礼花阶段，4=重开提示
 let winStage = 0;
 
+let bgmStarted = false;
+
+function startBGM() {
+    if (!bgmStarted && bgm) {
+        bgm.play();
+        bgmStarted = true;
+    }
+}
+
+canvas.addEventListener('click', startBGM);
+canvas.addEventListener('touchend', startBGM);
+
 // 获取活动区间内的随机横坐标
 function getRandomPreviewX() {
     return Math.random() * (ACTIVE_RIGHT - ACTIVE_LEFT - 2 * FRUIT_RADIUS[previewType]) + ACTIVE_LEFT + FRUIT_RADIUS[previewType];
