@@ -438,6 +438,7 @@ canvas.addEventListener('click', e => {
         messageDiv.textContent = '点击屏幕重新开始';
         messageDiv.style.color = '#e06666';
         showRestartTip = true;
+        // 不清空 confettiList，这样礼花会持续显示
         return;
     }
     if (win && winStage === 3 && restartReady && showRestartTip) {
