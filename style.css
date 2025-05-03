@@ -20,7 +20,7 @@ h1 {
 }
 
 #game-canvas {
-    background: #fff;
+    background: linear-gradient(120deg, #ffe4ec 0%, #fffbe7 20%, #e0f7fa 40%, #e6ffe6 60%, #ffe5b4 80%, #f3e6ff 100%);
     border-radius: 20px;
     box-shadow: 0 4px 24px rgba(0,0,0,0.08);
     margin-bottom: 10px;
