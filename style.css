@@ -1,7 +1,7 @@
 body {
     position: relative;
     overflow: hidden;
-    background: linear-gradient(120deg, #ffe4ec 0%, #fffbe7 20%, #e0f7fa 40%, #e6ffe6 60%, #ffe5b4 80%, #f3e6ff 100%);
+    background: #fff; /* 兜底色，防止渐变没加载时闪白 */
     font-family: '微软雅黑', 'Arial', sans-serif;
     text-align: center;
     margin: 0;
@@ -67,8 +67,8 @@ body::before {
     left: 0; top: 0; right: 0; bottom: 0;
     z-index: -1;
     background: linear-gradient(120deg, #ffe4ec, #fffbe7, #e0f7fa, #e6ffe6, #ffe5b4, #f3e6ff, #ffe4ec);
-    background-size: 400% 400%;
-    animation: gradientMove 40s linear infinite;
+    background-size: 800% 800%;
+    animation: gradientMove 20s linear infinite;
     opacity: 1;
     pointer-events: none;
 }
