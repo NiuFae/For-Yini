@@ -147,6 +147,20 @@ function drawConfetti() {
     confettiList = confettiList.filter(c => c.alpha > 0);
 }
 
+// 直接加在 drawConfetti 后面
+function launchConfetti() {
+    for (let i = 0; i < 60; i++) {
+        confettiList.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * (canvas.height / 2),
+            size: 8 + Math.random() * 8,
+            color: `hsl(${Math.random() * 360},90%,70%)`,
+            speed: 2 + Math.random() * 3,
+            alpha: 1
+        });
+    }
+}
+
 // 美好特效阶段的粒子动画（和礼花类似，五彩泡泡+星星）
 function drawBeautifulParticles() {
     for (let p of beautifulParticles) {
@@ -408,8 +422,8 @@ function showWinBlessing() {
     }, 200);
     // 礼花
     launchConfetti();
-    restartReady = false; // 这里要设为 false，等下点击才设为 true
-    showRestartTip = false;
+    restartReady = false; 
+    
 }
 
 // 鼠标移动时，预览水果跟随鼠标横坐标
@@ -424,27 +438,25 @@ canvas.addEventListener('mousemove', e => {
 // 鼠标点击控制掉落位置或阶段切换
 canvas.addEventListener('click', e => {
     if (win && winStage === 1) {
-        // 第一次点击，进入美好特效阶段
         winStage = 2;
         beautifulParticles = [];
         return;
     }
     if (win && winStage === 2) {
-        // 第二次点击，进入祝福语和礼花阶段
         showWinBlessing();
         return;
     }
-    if (win && winStage === 3 && !restartReady) {
+    if (win && winStage === 3 && !showRestartTip) {
         // 第三次点击，显示“点击屏幕重新开始”
         clearInterval(colorInterval);
         messageDiv.textContent = '点击屏幕重新开始';
         messageDiv.style.color = '#e06666';
         showRestartTip = true;
-        restartReady = true;
-        winStage = 4;
         return;
     }
-    if (win && winStage === 4 && restartReady && showRestartTip) {
+    if (win && winStage === 3 && showRestartTip) {
+        // 第四次点击，才真正重开
+        winStage = 4;
         restartGame();
         return;
     }
@@ -475,16 +487,15 @@ canvas.addEventListener('touchend', e => {
         showWinBlessing();
         return;
     }
-    if (win && winStage === 3 && !restartReady) {
+    if (win && winStage === 3 && !showRestartTip) {
         clearInterval(colorInterval);
         messageDiv.textContent = '点击屏幕重新开始';
         messageDiv.style.color = '#e06666';
         showRestartTip = true;
-        restartReady = true;
-        winStage = 4;
         return;
     }
-    if (win && winStage === 4 && restartReady && showRestartTip) {
+    if (win && winStage === 3 && showRestartTip) {
+        winStage = 4;
         restartGame();
         return;
     }
