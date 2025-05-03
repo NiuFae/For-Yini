@@ -19,8 +19,7 @@ const MESSAGES = {
     2: '宜言饮酒',
     3: '与子偕老',
     4: '琴瑟在御',
-    5: '莫不静好',
-    6: '祝洪漪妮、曾础铭新婚快乐，永远幸福！'
+    5: '莫不静好'
 };
 
 let fruits = [];
@@ -29,6 +28,10 @@ let isDropping = false;
 let dropFruit = null;
 let dropX = canvas.width / 2;
 let gameOver = false;
+let win = false;
+let colorInterval = null;
+let confettiList = [];
+let restartReady = false;
 
 // 加载图片
 function loadImages(callback) {
@@ -63,18 +66,92 @@ function drawFruit(fruit) {
     ctx.restore();
 }
 
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+function drawHeart(x, y, size) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x, y + size / 4);
+    ctx.bezierCurveTo(x, y, x - size / 2, y, x - size / 2, y + size / 4);
+    ctx.bezierCurveTo(x - size / 2, y + size / 2, x, y + size / 1.2, x, y + size);
+    ctx.bezierCurveTo(x, y + size / 1.2, x + size / 2, y + size / 2, x + size / 2, y + size / 4);
+    ctx.bezierCurveTo(x + size / 2, y, x, y, x, y + size / 4);
+    ctx.closePath();
+    ctx.fillStyle = 'red';
+    ctx.fill();
+    ctx.restore();
+}
 
-    // 画死亡线
+function drawECGLine() {
+    // 心电图参数
+    const width = ACTIVE_RIGHT - ACTIVE_LEFT;
+    const height = 30;
+    const baseY = DEAD_LINE;
+    const points = [];
+    const n = 60;
+    for (let i = 0; i <= n; i++) {
+        let t = i / n;
+        let x = ACTIVE_LEFT + t * width;
+        // 让心电图在中间有一个心跳
+        let y = baseY;
+        if (t > 0.45 && t < 0.55) {
+            // 中间心跳
+            if (t < 0.48) y -= 10 * (1 - (t - 0.45) / 0.03); // 上升
+            else if (t < 0.50) y += 20 * ((t - 0.48) / 0.02); // 降低
+            else if (t < 0.52) y -= 10 * ((t - 0.50) / 0.02); // 小上升
+            else y = baseY;
+        } else if (t % 0.2 < 0.05) {
+            y -= 5 * Math.sin((t % 0.2) * Math.PI * 10);
+        }
+        points.push({x, y});
+    }
     ctx.save();
     ctx.strokeStyle = 'red';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(ACTIVE_LEFT, DEAD_LINE);
-    ctx.lineTo(ACTIVE_RIGHT, DEAD_LINE);
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let p of points) ctx.lineTo(p.x, p.y);
     ctx.stroke();
     ctx.restore();
+
+    // 在心跳中间画心形
+    drawHeart(ACTIVE_LEFT + width / 2, baseY - 25, 24);
+}
+
+function drawConfetti() {
+    for (let c of confettiList) {
+        ctx.save();
+        ctx.globalAlpha = c.alpha;
+        ctx.fillStyle = c.color;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.size, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.restore();
+        c.y += c.speed;
+        c.alpha -= 0.005;
+    }
+    confettiList = confettiList.filter(c => c.alpha > 0);
+}
+
+function launchConfetti() {
+    for (let i = 0; i < 60; i++) {
+        confettiList.push({
+            x: canvas.width / 2 + (Math.random() - 0.5) * 180,
+            y: DEAD_LINE + 40 + Math.random() * 100,
+            size: 6 + Math.random() * 8,
+            color: `hsl(${Math.random() * 360},90%,60%)`,
+            speed: 1 + Math.random() * 2,
+            alpha: 1
+        });
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 画心电图死亡线
+    drawECGLine();
+
+    // 礼花
+    if (win) drawConfetti();
 
     for (let fruit of fruits) {
         drawFruit(fruit);
@@ -85,7 +162,7 @@ function draw() {
 }
 
 function update() {
-    if (gameOver) return;
+    if (gameOver || win) return;
     for (let fruit of fruits) {
         fruit.y += fruit.vy;
         fruit.vy += 0.3; // 重力
@@ -118,12 +195,23 @@ function update() {
                 if (a.type === b.type && !a.merged && !b.merged && a.type < FRUIT_COUNT - 1) {
                     let nx = (a.x + b.x) / 2;
                     let ny = (a.y + b.y) / 2;
-                    fruits.push(new Fruit(nx, ny, a.type + 1));
-                    a.merged = b.merged = true;
-                    showMessage(a.type + 1);
-                    if (mergeSound) {
-                        mergeSound.currentTime = 0;
-                        mergeSound.play();
+                    if (a.type + 1 === FRUIT_COUNT - 1) {
+                        // 合成到第七张，触发胜利
+                        showWin();
+                        a.merged = b.merged = true;
+                        launchConfetti();
+                        if (mergeSound) {
+                            mergeSound.currentTime = 0;
+                            mergeSound.play();
+                        }
+                    } else {
+                        fruits.push(new Fruit(nx, ny, a.type + 1));
+                        a.merged = b.merged = true;
+                        showMessage(a.type + 1);
+                        if (mergeSound) {
+                            mergeSound.currentTime = 0;
+                            mergeSound.play();
+                        }
                     }
                 } else {
                     // 简单弹开
@@ -144,40 +232,92 @@ function showMessage(type) {
     if (MESSAGES[type]) {
         messageDiv.textContent = MESSAGES[type];
         messageDiv.style.opacity = 1;
-        if (type === 6) { // 最后一张全屏祝福
-            setTimeout(() => {
-                messageDiv.style.fontSize = '2em';
-                messageDiv.style.color = '#e06666';
-                messageDiv.style.background = 'rgba(255,255,255,0.9)';
-                messageDiv.style.position = 'absolute';
-                messageDiv.style.top = '40%';
-                messageDiv.style.left = '0';
-                messageDiv.style.width = '100%';
-                messageDiv.style.padding = '30px 0';
-            }, 100);
-        }
+        messageDiv.style.fontSize = '';
+        messageDiv.style.color = '#ff9800';
+        messageDiv.style.background = '';
+        messageDiv.style.position = '';
+        messageDiv.style.top = '';
+        messageDiv.style.left = '';
+        messageDiv.style.width = '';
+        messageDiv.style.padding = '';
         setTimeout(() => {
-            if (type !== 6) {
-                messageDiv.style.opacity = 0;
-            }
+            messageDiv.style.opacity = 0;
         }, 2000);
     }
 }
 
-// 鼠标点击控制掉落位置
+function showWin() {
+    win = true;
+    messageDiv.textContent = '祝洪漪妮、曾础铭新婚快乐，永远幸福！';
+    messageDiv.style.opacity = 1;
+    messageDiv.style.fontSize = '2em';
+    messageDiv.style.color = '#e06666';
+    messageDiv.style.background = 'rgba(255,255,255,0.9)';
+    messageDiv.style.position = 'absolute';
+    messageDiv.style.top = '40%';
+    messageDiv.style.left = '0';
+    messageDiv.style.width = '100%';
+    messageDiv.style.padding = '30px 0';
+    // 字体颜色闪烁
+    let colors = ['#e06666', '#ff9800', '#ff4081', '#4caf50', '#2196f3', '#9c27b0'];
+    let i = 0;
+    colorInterval = setInterval(() => {
+        messageDiv.style.color = colors[i % colors.length];
+        i++;
+    }, 200);
+    // 礼花
+    launchConfetti();
+    // 10秒后显示重新开始
+    setTimeout(() => {
+        clearInterval(colorInterval);
+        messageDiv.textContent = '点击屏幕重新开始';
+        messageDiv.style.color = '#e06666';
+        restartReady = true;
+    }, 10000);
+}
+
+// 鼠标点击控制掉落位置或重开
 canvas.addEventListener('click', e => {
-    if (!isDropping && !gameOver) {
+    if (win && restartReady) {
+        restartGame();
+        return;
+    }
+    if (!isDropping && !gameOver && !win) {
         const rect = canvas.getBoundingClientRect();
         let x = e.clientX - rect.left;
         // 限制在活动区间
         x = Math.max(ACTIVE_LEFT + FRUIT_RADIUS[0], Math.min(ACTIVE_RIGHT - FRUIT_RADIUS[0], x));
-        dropFruit = new Fruit(x, FRUIT_RADIUS[0], 0, 0);
+        // 随机掉落第一或第二张
+        let type = Math.floor(Math.random() * 2);
+        dropFruit = new Fruit(x, FRUIT_RADIUS[type], type, 0);
         isDropping = true;
     }
 });
 
+function restartGame() {
+    fruits = [];
+    isDropping = false;
+    dropFruit = null;
+    dropX = canvas.width / 2;
+    gameOver = false;
+    win = false;
+    restartReady = false;
+    confettiList = [];
+    messageDiv.textContent = '';
+    messageDiv.style.opacity = 0;
+    messageDiv.style.fontSize = '';
+    messageDiv.style.color = '';
+    messageDiv.style.background = '';
+    messageDiv.style.position = '';
+    messageDiv.style.top = '';
+    messageDiv.style.left = '';
+    messageDiv.style.width = '';
+    messageDiv.style.padding = '';
+    gameLoop();
+}
+
 function gameLoop() {
-    if (!gameOver) {
+    if (!gameOver && !win) {
         if (isDropping && dropFruit) {
             dropFruit.y += dropFruit.vy;
             dropFruit.vy += 0.3;
@@ -205,6 +345,9 @@ function gameLoop() {
         update();
         draw();
         requestAnimationFrame(gameLoop);
+    } else {
+        draw(); // 让礼花动画继续
+        if (win) requestAnimationFrame(gameLoop);
     }
 }
 
@@ -215,11 +358,16 @@ loadImages(() => {
 
 // 适配移动端
 canvas.addEventListener('touchend', e => {
-    if (!isDropping && !gameOver) {
+    if (win && restartReady) {
+        restartGame();
+        return;
+    }
+    if (!isDropping && !gameOver && !win) {
         const rect = canvas.getBoundingClientRect();
         let x = e.changedTouches[0].clientX - rect.left;
         x = Math.max(ACTIVE_LEFT + FRUIT_RADIUS[0], Math.min(ACTIVE_RIGHT - FRUIT_RADIUS[0], x));
-        dropFruit = new Fruit(x, FRUIT_RADIUS[0], 0, 0);
+        let type = Math.floor(Math.random() * 2);
+        dropFruit = new Fruit(x, FRUIT_RADIUS[type], type, 0);
         isDropping = true;
     }
 });
