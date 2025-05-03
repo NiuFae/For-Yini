@@ -323,9 +323,10 @@ function update() {
                     let nx = (a.x + b.x) / 2;
                     let ny = (a.y + b.y) / 2;
                     if (a.type + 1 === FRUIT_COUNT - 1) {
-                        // 合成到第七张，进入winStage=1
-                        showWin();
+                        // 合成到第七张，先把第七张水果加到场景
+                        fruits.push(new Fruit(nx, ny, a.type + 1));
                         a.merged = b.merged = true;
+                        showWin(); // 进入winStage=1，等待玩家点击
                         if (mergeSound) {
                             mergeSound.currentTime = 0;
                             mergeSound.play();
