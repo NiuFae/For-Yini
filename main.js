@@ -38,6 +38,13 @@ let previewType = Math.floor(Math.random() * 2);
 let previewX = getRandomPreviewX();
 let showRestartTip = false;
 
+// 胜利动画阶段
+let winStage = 0; // 0=未胜利，1=等待3s，2=渐隐，3=祝福语和礼花
+let winStartTime = 0;
+let fadeStartTime = 0;
+let fadeDuration = 1000; // 渐隐1秒
+let fruitsAlpha = 1;
+
 // 获取活动区间内的随机横坐标
 function getRandomPreviewX() {
     return Math.random() * (ACTIVE_RIGHT - ACTIVE_LEFT - 2 * FRUIT_RADIUS[previewType]) + ACTIVE_LEFT + FRUIT_RADIUS[previewType];
@@ -156,7 +163,7 @@ function launchConfetti() {
 }
 
 function drawPreviewFruit() {
-    if (!isDropping && !gameOver && !win) {
+    if (!isDropping && !gameOver && !win && winStage === 0) {
         drawFruit({x: previewX, y: DEAD_LINE - FRUIT_RADIUS[previewType] - 10, type: previewType, radius: FRUIT_RADIUS[previewType]}, 0.5);
     }
 }
@@ -168,24 +175,77 @@ function draw() {
     drawECGLine();
 
     // 礼花
-    if (win) drawConfetti();
+    if (win && winStage === 3) drawConfetti();
 
     // 画预览水果
     drawPreviewFruit();
 
-    // 游戏中才画水果
-    if (!win) {
+    // 游戏中或胜利动画阶段才画水果
+    if (!win || winStage === 1 || winStage === 2) {
         for (let fruit of fruits) {
-            drawFruit(fruit);
+            drawFruit(fruit, fruitsAlpha);
         }
         if (dropFruit) {
-            drawFruit(dropFruit);
+            drawFruit(dropFruit, fruitsAlpha);
         }
     }
 }
 
 function update() {
-    if (gameOver || win) return;
+    if (gameOver || (win && winStage === 3)) return;
+
+    // 胜利动画阶段处理
+    if (win && winStage > 0) {
+        if (winStage === 1) {
+            // 等待3秒
+            if (Date.now() - winStartTime >= 3000) {
+                winStage = 2;
+                fadeStartTime = Date.now();
+            }
+        } else if (winStage === 2) {
+            // 渐隐
+            let t = (Date.now() - fadeStartTime) / fadeDuration;
+            fruitsAlpha = Math.max(0, 1 - t);
+            if (fruitsAlpha <= 0) {
+                winStage = 3;
+                showWinBlessing();
+            }
+        }
+        // 水果和碰撞依然正常
+        for (let fruit of fruits) {
+            fruit.y += fruit.vy;
+            fruit.vy += 0.3; // 重力
+            if (fruit.y + fruit.radius > canvas.height) {
+                fruit.y = canvas.height - fruit.radius;
+                fruit.vy = 0;
+            }
+            // 限制在活动区间
+            if (fruit.x - fruit.radius < ACTIVE_LEFT) {
+                fruit.x = ACTIVE_LEFT + fruit.radius;
+            }
+            if (fruit.x + fruit.radius > ACTIVE_RIGHT) {
+                fruit.x = ACTIVE_RIGHT - fruit.radius;
+            }
+        }
+        // 碰撞检测与合成（但不再生成新水果）
+        for (let i = 0; i < fruits.length; i++) {
+            for (let j = i + 1; j < fruits.length; j++) {
+                let a = fruits[i], b = fruits[j];
+                let dx = a.x - b.x, dy = a.y - b.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < a.radius + b.radius) {
+                    // 简单弹开
+                    let overlap = a.radius + b.radius - dist;
+                    let ox = dx / dist * overlap / 2;
+                    let oy = dy / dist * overlap / 2;
+                    a.x += ox; a.y += oy;
+                    b.x -= ox; b.y -= oy;
+                }
+            }
+        }
+        return;
+    }
+
     for (let fruit of fruits) {
         fruit.y += fruit.vy;
         fruit.vy += 0.3; // 重力
@@ -219,7 +279,7 @@ function update() {
                     let nx = (a.x + b.x) / 2;
                     let ny = (a.y + b.y) / 2;
                     if (a.type + 1 === FRUIT_COUNT - 1) {
-                        // 合成到第七张，触发胜利
+                        // 合成到第七张，触发胜利动画
                         showWin();
                         a.merged = b.merged = true;
                         launchConfetti();
@@ -271,8 +331,16 @@ function showMessage(type) {
 
 function showWin() {
     win = true;
-    fruits = [];
+    winStage = 1;
+    winStartTime = Date.now();
+    fruitsAlpha = 1;
+    // 不清空fruits，保留现状
     dropFruit = null;
+    restartReady = false;
+    showRestartTip = false;
+}
+
+function showWinBlessing() {
     messageDiv.textContent = '祝洪漪妮、曾础铭新婚快乐，永远幸福！';
     messageDiv.style.opacity = 1;
     messageDiv.style.fontSize = '2em';
@@ -292,14 +360,13 @@ function showWin() {
     }, 200);
     // 礼花
     launchConfetti();
-    // 祝福语一直持续，直到玩家点击
-    showRestartTip = false;
     restartReady = true;
+    showRestartTip = false;
 }
 
 // 鼠标移动时，预览水果跟随鼠标横坐标
 canvas.addEventListener('mousemove', e => {
-    if (!isDropping && !gameOver && !win) {
+    if (!isDropping && !gameOver && !win && winStage === 0) {
         const rect = canvas.getBoundingClientRect();
         let x = e.clientX - rect.left;
         previewX = Math.max(ACTIVE_LEFT + FRUIT_RADIUS[previewType], Math.min(ACTIVE_RIGHT - FRUIT_RADIUS[previewType], x));
@@ -308,7 +375,7 @@ canvas.addEventListener('mousemove', e => {
 
 // 鼠标点击控制掉落位置或重开
 canvas.addEventListener('click', e => {
-    if (win && restartReady && !showRestartTip) {
+    if (win && winStage === 3 && restartReady && !showRestartTip) {
         // 第一次点击，显示“点击屏幕重新开始”
         clearInterval(colorInterval);
         messageDiv.textContent = '点击屏幕重新开始';
@@ -316,12 +383,11 @@ canvas.addEventListener('click', e => {
         showRestartTip = true;
         return;
     }
-    if (win && restartReady && showRestartTip) {
-        // 第二次点击，重开
+    if (win && winStage === 3 && restartReady && showRestartTip) {
         restartGame();
         return;
     }
-    if (!isDropping && !gameOver && !win) {
+    if (!isDropping && !gameOver && !win && winStage === 0) {
         // 掉落水果
         dropFruit = new Fruit(previewX, FRUIT_RADIUS[previewType], previewType, 0);
         isDropping = true;
@@ -333,25 +399,25 @@ canvas.addEventListener('click', e => {
 
 // 移动端适配
 canvas.addEventListener('touchmove', e => {
-    if (!isDropping && !gameOver && !win) {
+    if (!isDropping && !gameOver && !win && winStage === 0) {
         const rect = canvas.getBoundingClientRect();
         let x = e.touches[0].clientX - rect.left;
         previewX = Math.max(ACTIVE_LEFT + FRUIT_RADIUS[previewType], Math.min(ACTIVE_RIGHT - FRUIT_RADIUS[previewType], x));
     }
 });
 canvas.addEventListener('touchend', e => {
-    if (win && restartReady && !showRestartTip) {
+    if (win && winStage === 3 && restartReady && !showRestartTip) {
         clearInterval(colorInterval);
         messageDiv.textContent = '点击屏幕重新开始';
         messageDiv.style.color = '#e06666';
         showRestartTip = true;
         return;
     }
-    if (win && restartReady && showRestartTip) {
+    if (win && winStage === 3 && restartReady && showRestartTip) {
         restartGame();
         return;
     }
-    if (!isDropping && !gameOver && !win) {
+    if (!isDropping && !gameOver && !win && winStage === 0) {
         // 掉落水果
         dropFruit = new Fruit(previewX, FRUIT_RADIUS[previewType], previewType, 0);
         isDropping = true;
@@ -368,7 +434,8 @@ function restartGame() {
     dropX = (ACTIVE_LEFT + ACTIVE_RIGHT) / 2;
     gameOver = false;
     win = false;
-    restartReady = false;
+    winStage = 0;
+    fruitsAlpha = 1;
     confettiList = [];
     messageDiv.textContent = '';
     messageDiv.style.opacity = 0;
@@ -387,7 +454,7 @@ function restartGame() {
 }
 
 function gameLoop() {
-    if (!gameOver && !win) {
+    if (!gameOver && (!win || winStage < 3)) {
         if (isDropping && dropFruit) {
             dropFruit.y += dropFruit.vy;
             dropFruit.vy += 0.3;
@@ -412,6 +479,10 @@ function gameLoop() {
                 }
             }
         }
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    } else if (win && winStage < 3) {
         update();
         draw();
         requestAnimationFrame(gameLoop);
